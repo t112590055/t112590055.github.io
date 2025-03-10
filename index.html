@@ -1,164 +1,81 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>隨機食物老虎機</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>工具集</title>
+        <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 40px;
             display: flex;
             flex-direction: column;
-            align-items: center; /* 水平置中 */
-            justify-content: center; /* 垂直置中 */
-            background-color: #f0f0f0;
-            min-height: 100vh; /* 確保佔滿整個視窗高度 */
-            padding: 20px;
+            align-items: center;
+            color: #333;
         }
         h1 {
-            color: #333;
-            margin-bottom: 20px;
-            animation: bounce 2s infinite;
-            font-size: clamp(24px, 5vw, 36px);
-        }
-        .slot-machine {
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            width: 90%;
-            max-width: 400px;
+            font-size: 2.5em;
+            margin-bottom: 30px;
             text-align: center;
-            border: 3px solid #ff6666;
         }
-        .reel {
-            height: 80px;
-            background-color: #fff0f0;
-            border: 3px solid #ff4444;
+        .tool-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        .tool-card {
+            background-color: #fff;
+            padding: 20px;
             border-radius: 8px;
-            font-size: clamp(20px, 4vw, 28px);
-            line-height: 80px;
-            margin: 15px 0;
-            overflow: hidden;
-            position: relative;
-            font-weight: bold;
-            color: #333;
-        }
-        .reel.spinning {
-            animation: spinBlur 0.1s linear infinite;
-        }
-        button {
-            background-color: #ff4444;
-            color: white;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: clamp(16px, 3.5vw, 20px);
-            width: 100%;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 250px;
+            text-align: center;
             transition: transform 0.2s;
+            cursor: pointer; /* 顯示可點擊指標 */
         }
-        button:hover {
-            background-color: #cc0000;
-            transform: scale(1.05);
+        .tool-card:hover {
+            transform: translateY(-5px);
         }
-        button:disabled {
-            background-color: #aaaaaa;
-            cursor: not-allowed;
-            transform: none;
+        .tool-card .title {
+            color: #007bff;
+            font-size: 1.2em;
+            font-weight: bold;
         }
-        @keyframes spinBlur {
-            0% { filter: blur(0px); }
-            50% { filter: blur(3px); }
-            100% { filter: blur(0px); }
+        .tool-card .title:hover {
+            color: #0056b3;
         }
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-15px); }
-            60% { transform: translateY(-7px); }
-        }
-        @keyframes resultPop {
-            0% { transform: scale(0.5); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .result {
-            animation: resultPop 0.5s ease-out forwards;
-        }
-        @media (max-width: 600px) {
-            .slot-machine {
-                padding: 15px;
-            }
-            .reel {
-                height: 60px;
-                line-height: 60px;
-            }
-            button {
-                padding: 12px 20px;
-            }
+        .tool-card p {
+            margin: 10px 0 0;
+            color: #666;
+            font-size: 0.9em;
         }
     </style>
-</head>
-<body>
-    <h1>隨機食物老虎機</h1>
-    <div class="slot-machine">
-        <div class="reel" id="foodReel">按鈕開始！</div>
-        <button id="spinButton" onclick="spinReel()">轉一下吃什麼</button>
-    </div>
-
-    <script>
-        const foods = [
-            "滷肉飯", "雞肉飯", "排骨飯", "控肉飯", "牛肉麵", "陽春麵", "擔仔麵", "麻醬麵", "肉燥飯", "雞腿飯",
-            "豬腳飯", "便當", "炒飯", "炒麵", "蚵仔煎", "臭豆腐", "鹹酥雞", "雞排", "珍珠奶茶配飯團", "滷味拼盤",
-            "蔥油餅", "燒餅油條", "肉圓", "米粉湯", "大腸麵線", "蚵仔麵線", "筒仔米糕", "芋圓", "刈包", "鹹豆漿",
-            "青菜飯", "燙青菜配飯", "三杯雞飯", "宮保雞丁飯", "客家小炒飯", "紅燒肉飯", "滷雞腿飯", "滷蛋飯",
-            "牛腩飯", "牛肉湯", "羊肉湯", "花枝丸湯", "貢丸湯", "魚丸湯", "皮蛋瘦肉粥", "青菜粥", "地瓜粥",
-            "海鮮粥", "雞絲粥", "鹹粥", "甜豆花", "鹹豆花", "草仔粿", "紅豆湯", "綠豆湯", "花生湯", "湯圓",
-            "車輪餅", "雞蛋糕", "烤地瓜", "愛玉冰", "仙草冰", "剉冰", "鹽酥菇", "炸雞翅", "炸魷魚", "滷味鴨血",
-            "滷味豆干", "滷味海帶", "滷味雞爪", "滷味豬耳朵", "滷味雞胗", "炒米粉", "炒青菜飯", "炒高麗菜飯",
-            "炒空心菜飯", "炒地瓜葉飯", "滷排骨飯", "滷牛筋飯", "滷鴨飯", "滷鵝飯", "滷大腸飯", "滷豬肚飯",
-            "滷雞腳飯", "滷鴨舌飯", "滷鴨翅飯", "滷鴨脖子飯", "滷豬尾飯", "滷豬皮飯", "滷豬頭皮飯", "滷豆腐飯",
-            "滷花干飯", "滷百頁飯", "滷香菇飯", "滷筍絲飯", "滷蓮藕飯", "滷竹筍飯", "滷南瓜飯", "滷冬瓜飯",
-            "滷苦瓜飯", "滷茄子飯", "滷青椒飯", "滷蘿蔔飯", "滷地瓜飯", "滷金針菇飯", "滷杏鮑菇飯", "滷鴨蛋飯",
-            "餃子", "鍋貼", "燒賣", "湯包", "蔥抓餅", "春捲", "煎餅果子", "麻婆豆腐飯", "魚香肉絲飯", "糖醋排骨飯",
-            "紅燒魚飯", "清蒸魚飯", "酸菜魚飯", "牛柳炒飯", "雞絲炒麵", "海鮮炒麵", "炸醬麵", "東坡肉飯", "獅子頭飯",
-            "苦瓜排骨湯飯", "冬瓜排骨湯飯", "蓮藕湯飯", "三鮮粥", "南瓜粥", "豆沙包", "叉燒包", "奶黃包",
-            "義大利麵", "披薩", "漢堡", "三明治", "熱狗", "炸雞", "薯條", "拉麵", "壽司", "飯團",
-            "親子丼", "牛丼", "天婦羅飯", "日式咖喱飯", "味噌湯飯", "章魚燒", "大阪燒", "可樂餅", "石鍋拌飯",
-            "韓式炸醬麵", "韓式冷麵", "韓式辣炒年糕", "韓式烤肉飯", "韓式豆腐鍋", "韓式紫菜包飯", "泰式炒飯",
-            "泰式綠咖喱飯", "泰式冬陰功湯麵", "泰式涼拌青木瓜", "越南河粉", "越南春捲", "印度咖喱飯", "印度烤餅",
-            "墨西哥捲餅", "美式鬆餅", "法式可麗餅", "德式香腸", "西班牙海鮮飯", "港式雲吞麵", "港式叉燒飯",
-            "港式菠蘿包", "俄式羅宋湯", "馬來西亞叻沙", "馬來西亞炒貴刁", "西式沙拉", "西式濃湯", "西式焗飯",
-            "甜甜圈", "可頌", "蛋塔", "芒果糯米飯", "抹茶冰淇淋飯", "法國吐司", "鬆餅配果醬", "紅豆餅", "花生餅",
-            "麻花", "椰奶糯米", "八寶粥", "紅豆湯圓", "綠豆糕", "芝麻球", "煎堆", "芋頭酥", "鳳梨酥", "太陽餅"
-        ];
-
-        function spinReel() {
-            const reel = document.getElementById("foodReel");
-            const button = document.getElementById("spinButton");
-            button.disabled = true;
-            reel.classList.add("spinning");
-
-            let spins = 0;
-            const maxSpins = 30;
-            const interval = setInterval(() => {
-                const randomFood = foods[Math.floor(Math.random() * foods.length)];
-                reel.textContent = randomFood;
-                spins++;
-
-                if (spins >= maxSpins) {
-                    clearInterval(interval);
-                    reel.classList.remove("spinning");
-                    reel.classList.add("result");
-                    reel.textContent = `今天吃：${randomFood}`;
-                    button.disabled = false;
+    </head>
+    <body>
+        <h1>666工具集</h1>
+        <div class="tool-list">
+            <div class="tool-card" data-href="./random_food_picker.html">
+                <div class="title">隨機食物老虎機</div>
+                <p>隨機選擇食物</p>
+            </div>
+            <div class="tool-card" data-href="./img2map.html">
+                <div class="title">圖片網格座標工具</div>
+                <p>圖片分格並選取座標生成陣列</p>
+            </div>
+        </div>
+        <script>
+        // 為每個 tool-card 添加點擊事件
+        document.querySelectorAll('.tool-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const href = this.getAttribute('data-href');
+                if (href) {
+                    window.location.href = href; // 跳轉到指定頁面
                 }
-            }, 80);
-        }
+            });
+        });
     </script>
-</body>
+    </body>
 </html>

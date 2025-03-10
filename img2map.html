@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>圖片網格座標工具</title>
+        <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            max-width: 100%;
+        }
+        .controls {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #555;
+        }
+        input[type="color"] {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #fileInput {
+            margin-bottom: 20px;
+        }
+        #coord, #arrayOutput {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            color: #333;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+    </head>
+    <body>
+        <h1>圖片網格座標工具</h1>
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="controls">
+            <label>字體顏色: <input type="color" id="fontColor"
+                    value="#ff0000"></label>
+            <label>分隔線顏色: <input type="color" id="lineColor"
+                    value="#000000"></label>
+            <label>分隔像素: <input type="number" id="gridSize" value="32"
+                    min="1"></label>
+            <label>背景亮度(%): <input type="number" id="brightness" value="50"
+                    min="0" max="100"></label>
+            <button onclick="redraw()">重新繪製</button>
+        </div>
+        <canvas id="canvas"></canvas>
+        <div id="coord">滑鼠座標將顯示在此</div>
+        <div id="arrayOutput">選取陣列將顯示在此</div>
+        <script>
+        // 獲取DOM元素
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const coordDiv = document.getElementById('coord');
+        const arrayOutput = document.getElementById('arrayOutput');
+        const fileInput = document.getElementById('fileInput');
+        const fontColor = document.getElementById('fontColor');
+        const lineColor = document.getElementById('lineColor');
+        const gridSizeInput = document.getElementById('gridSize');
+        const brightnessInput = document.getElementById('brightness');
+
+        // 創建Image對象用於載入圖片
+        const img = new Image();
+        let selectedCells = new Set();
+        let isDragging = false;
+        let dragStartPos = null;
+
+        // 當圖片載入完成時執行的函數
+        img.onload = function() {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            redraw();
+            setupCanvasEvents();
+        };
+
+        // 處理用戶上傳的圖片
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 重新繪製畫布
+        function redraw() {
+            const gridSize = parseInt(gridSizeInput.value) || 32;
+            const brightness = parseInt(brightnessInput.value) || 50;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.filter = `brightness(${brightness}%)`;
+            ctx.drawImage(img, 0, 0);
+            ctx.filter = 'none';
+
+            drawSelectedCells(gridSize);
+            drawGrid(img.width, img.height, gridSize);
+            drawCoordinates(img.width, img.height, gridSize);
+            updateArrayOutput(gridSize);
+        }
+
+        // 繪製網格線
+        function drawGrid(width, height, gridSize) {
+            ctx.strokeStyle = lineColor.value;
+            ctx.lineWidth = 1;
+
+            for (let x = 0; x <= width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y <= height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+        }
+
+        // 繪製座標
+        function drawCoordinates(width, height, gridSize) {
+            ctx.fillStyle = fontColor.value;
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const rows = Math.floor(height / gridSize);
+            const cols = Math.floor(width / gridSize);
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const x = col * gridSize + gridSize / 2;
+                    const y = row * gridSize + gridSize / 2;
+                    ctx.fillText(`${row},${col}`, x, y);
+                }
+            }
+        }
+
+        // 繪製選取的方格
+        function drawSelectedCells(gridSize) {
+            selectedCells.forEach(cell => {
+                const [row, col] = cell.split(',').map(Number);
+                const x = col * gridSize;
+                const y = row * gridSize;
+                ctx.drawImage(img, x, y, gridSize, gridSize, x, y, gridSize, gridSize);
+            });
+        }
+
+        // 更新陣列輸出（二維陣列格式）
+        function updateArrayOutput(gridSize) {
+            const rows = Math.floor(canvas.height / gridSize);
+            const cols = Math.floor(canvas.width / gridSize);
+            let outputText = '[\n';
+
+            for (let row = 0; row < rows; row++) {
+                let rowArray = [];
+                for (let col = 0; col < cols; col++) {
+                    const key = `${row},${col}`;
+                    rowArray.push(selectedCells.has(key) ? 1 : 0);
+                }
+                outputText += `  [${rowArray.join(',')}]`;
+                if (row < rows - 1) outputText += ',\n'; // 除了最後一行加逗號
+                else outputText += '\n';
+            }
+
+            outputText += ']';
+            arrayOutput.textContent = outputText;
+        }
+
+        // 設置Canvas事件
+        function setupCanvasEvents() {
+            canvas.addEventListener('mousedown', startSelecting);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', stopSelecting);
+        }
+
+        // 開始選取
+        function startSelecting(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const gridSize = parseInt(gridSizeInput.value) || 32;
+            const row = Math.floor(y / gridSize);
+            const col = Math.floor(x / gridSize);
+
+            if (row >= 0 && col >= 0 && row < Math.floor(canvas.height / gridSize) && col < Math.floor(canvas.width / gridSize)) {
+                isDragging = true;
+                dragStartPos = { row, col };
+                selectCell(row, col, true);
+            }
+        }
+
+        // 停止選取
+        function stopSelecting(event) {
+            if (!isDragging) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const gridSize = parseInt(gridSizeInput.value) || 32;
+            const row = Math.floor(y / gridSize);
+            const col = Math.floor(x / gridSize);
+
+            if (row >= 0 && col >= 0 && row < Math.floor(canvas.height / gridSize) && col < Math.floor(canvas.width / gridSize)) {
+                if (dragStartPos.row === row && dragStartPos.col === col) {
+                    selectCell(row, col, false);
+                }
+            }
+
+            isDragging = false;
+            dragStartPos = null;
+        }
+
+        // 處理滑鼠移動
+        function handleMouseMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const gridSize = parseInt(gridSizeInput.value) || 32;
+            const row = Math.floor(y / gridSize);
+            const col = Math.floor(x / gridSize);
+
+            if (row >= 0 && col >= 0 && row < Math.floor(canvas.height / gridSize) && col < Math.floor(canvas.width / gridSize)) {
+                coordDiv.textContent = `${row},${col}`;
+                if (isDragging) {
+                    selectCell(row, col, true);
+                }
+            } else {
+                coordDiv.textContent = '超出範圍';
+            }
+        }
+
+        // 選取單元格
+        function selectCell(row, col, isDraggingMode) {
+            const key = `${row},${col}`;
+            if (isDraggingMode) {
+                selectedCells.add(key);
+            } else {
+                if (selectedCells.has(key)) {
+                    selectedCells.delete(key);
+                } else {
+                    selectedCells.add(key);
+                }
+            }
+            redraw();
+        }
+    </script>
+    </body>
+</html>
