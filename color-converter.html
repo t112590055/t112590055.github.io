@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>圖片色彩格式轉換工具</title>
+        <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: clamp(1.5em, 5vw, 2.5em);
+        }
+        .controls {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 600px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: clamp(0.9em, 2.5vw, 1em);
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #fileInput {
+            margin-bottom: 20px;
+        }
+        .image-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .image-box {
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 100%;
+        }
+        .image-box img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+        }
+        .image-box p {
+            margin: 10px 0 0;
+            color: #333;
+            font-size: clamp(0.8em, 2.5vw, 1em);
+        }
+        @media (max-width: 600px) {
+            .controls {
+                flex-direction: column;
+                padding: 10px;
+            }
+            .image-container {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+    </head>
+    <body>
+        <h1>圖片色彩格式轉換工具</h1>
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="controls">
+            <button onclick="convertTo32Bit()">轉為 32-bit RGBA</button>
+            <button onclick="convertTo24Bit()">轉為 24-bit RGB</button>
+        </div>
+        <div class="image-container">
+            <div class="image-box" id="originalBox">
+                <img id="originalImage" src alt="原始圖片">
+                <p>原始圖片</p>
+            </div>
+            <div class="image-box" id="convertedBox">
+                <img id="convertedImage" src alt="轉換後圖片">
+                <p>轉換後圖片</p>
+                <button id="downloadButton" style="display: none;"
+                    onclick="downloadConvertedImage()">下載</button>
+            </div>
+        </div>
+        <script>
+        // 獲取DOM元素
+        const fileInput = document.getElementById('fileInput');
+        const originalImage = document.getElementById('originalImage');
+        const convertedImage = document.getElementById('convertedImage');
+        const downloadButton = document.getElementById('downloadButton');
+        let originalCanvas, convertedCanvas;
+
+        // 處理圖片上傳
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        originalImage.src = e.target.result;
+                        setupCanvases(img);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 設置Canvas
+        function setupCanvases(img) {
+            // 原始Canvas
+            originalCanvas = document.createElement('canvas');
+            originalCanvas.width = img.width;
+            originalCanvas.height = img.height;
+            const originalCtx = originalCanvas.getContext('2d');
+            originalCtx.drawImage(img, 0, 0);
+
+            // 轉換Canvas
+            convertedCanvas = document.createElement('canvas');
+            convertedCanvas.width = img.width;
+            convertedCanvas.height = img.height;
+
+            // 重置轉換結果
+            convertedImage.src = '';
+            downloadButton.style.display = 'none';
+        }
+
+        // 轉為 32-bit RGBA
+        function convertTo32Bit() {
+            if (!originalCanvas) {
+                alert('請先上傳圖片！');
+                return;
+            }
+
+            const ctx = convertedCanvas.getContext('2d');
+            ctx.clearRect(0, 0, convertedCanvas.width, convertedCanvas.height);
+            ctx.drawImage(originalCanvas, 0, 0);
+
+            // 確保有 Alpha 通道（PNG 支援 RGBA）
+            const imageData = ctx.getImageData(0, 0, convertedCanvas.width, convertedCanvas.height);
+            const data = imageData.data;
+
+            // 如果原始圖片無 Alpha 通道，設為全不透明 (255)
+            for (let i = 3; i < data.length; i += 4) {
+                if (data[i] === 0 && data[i - 1] === 0 && data[i - 2] === 0 && data[i - 3] === 0) {
+                    data[i] = 0; // 保持透明
+                } else {
+                    data[i] = 255; // 設為不透明
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+            convertedImage.src = convertedCanvas.toDataURL('image/png');
+            downloadButton.style.display = 'block';
+        }
+
+        // 轉為 24-bit RGB
+        function convertTo24Bit() {
+            if (!originalCanvas) {
+                alert('請先上傳圖片！');
+                return;
+            }
+
+            const ctx = convertedCanvas.getContext('2d');
+            ctx.clearRect(0, 0, convertedCanvas.width, convertedCanvas.height);
+
+            // 移除 Alpha 通道（填充白色背景）
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, convertedCanvas.width, convertedCanvas.height);
+            ctx.drawImage(originalCanvas, 0, 0);
+
+            convertedImage.src = convertedCanvas.toDataURL('image/jpeg'); // JPEG 不支援 Alpha
+            downloadButton.style.display = 'block';
+        }
+
+        // 下載轉換後的圖片
+        function downloadConvertedImage() {
+            const link = document.createElement('a');
+            link.href = convertedImage.src;
+            link.download = `converted_image.${convertedImage.src.startsWith('data:image/png') ? 'png' : 'jpg'}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+    </body>
+</html>

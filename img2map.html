@@ -13,16 +13,18 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
         }
         h1 {
             color: #333;
             margin-bottom: 20px;
+            font-size: clamp(1.5em, 5vw, 2.5em);
         }
         canvas {
             border: 1px solid #ccc;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             background-color: #fff;
-            max-width: 100%;
+            /* 移除 max-width 和 width，讓 Canvas 使用原始尺寸 */
         }
         .controls {
             background-color: #fff;
@@ -32,14 +34,18 @@
             margin: 20px 0;
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 600px;
         }
         label {
             display: flex;
             align-items: center;
             gap: 5px;
             color: #555;
+            font-size: clamp(0.8em, 2.5vw, 1em);
         }
         input[type="color"] {
             width: 40px;
@@ -53,6 +59,7 @@
             padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            font-size: 1em;
         }
         button {
             padding: 8px 16px;
@@ -62,6 +69,7 @@
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s;
+            font-size: clamp(0.9em, 2.5vw, 1em);
         }
         button:hover {
             background-color: #0056b3;
@@ -78,6 +86,18 @@
             color: #333;
             font-family: 'Courier New', monospace;
             white-space: pre-wrap;
+            width: 100%;
+            max-width: 600px;
+            font-size: clamp(0.8em, 2.5vw, 1em);
+        }
+        @media (max-width: 600px) {
+            .controls {
+                flex-direction: column;
+                padding: 10px;
+            }
+            input[type="number"] {
+                width: 50px;
+            }
         }
     </style>
     </head>
@@ -143,12 +163,12 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.filter = `brightness(${brightness}%)`;
-            ctx.drawImage(img, 0, 0);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             ctx.filter = 'none';
 
             drawSelectedCells(gridSize);
-            drawGrid(img.width, img.height, gridSize);
-            drawCoordinates(img.width, img.height, gridSize);
+            drawGrid(canvas.width, canvas.height, gridSize);
+            drawCoordinates(canvas.width, canvas.height, gridSize);
             updateArrayOutput(gridSize);
         }
 
@@ -201,7 +221,7 @@
             });
         }
 
-        // 更新陣列輸出（二維陣列格式）
+        // 更新陣列輸出
         function updateArrayOutput(gridSize) {
             const rows = Math.floor(canvas.height / gridSize);
             const cols = Math.floor(canvas.width / gridSize);
@@ -214,7 +234,7 @@
                     rowArray.push(selectedCells.has(key) ? 1 : 0);
                 }
                 outputText += `  [${rowArray.join(',')}]`;
-                if (row < rows - 1) outputText += ',\n'; // 除了最後一行加逗號
+                if (row < rows - 1) outputText += ',\n';
                 else outputText += '\n';
             }
 
@@ -226,7 +246,7 @@
         function setupCanvasEvents() {
             canvas.addEventListener('mousedown', startSelecting);
             canvas.addEventListener('mousemove', handleMouseMove);
-            canvas.addEventListener('mouseup', stopSelecting);
+            document.addEventListener('mouseup', stopSelecting);
         }
 
         // 開始選取
@@ -241,7 +261,7 @@
             if (row >= 0 && col >= 0 && row < Math.floor(canvas.height / gridSize) && col < Math.floor(canvas.width / gridSize)) {
                 isDragging = true;
                 dragStartPos = { row, col };
-                selectCell(row, col, true);
+                selectCell(row, col, event.shiftKey);
             }
         }
 
@@ -256,10 +276,8 @@
             const row = Math.floor(y / gridSize);
             const col = Math.floor(x / gridSize);
 
-            if (row >= 0 && col >= 0 && row < Math.floor(canvas.height / gridSize) && col < Math.floor(canvas.width / gridSize)) {
-                if (dragStartPos.row === row && dragStartPos.col === col) {
-                    selectCell(row, col, false);
-                }
+            if (dragStartPos && dragStartPos.row === row && dragStartPos.col === col) {
+                selectCell(row, col, false);
             }
 
             isDragging = false;
@@ -278,7 +296,7 @@
             if (row >= 0 && col >= 0 && row < Math.floor(canvas.height / gridSize) && col < Math.floor(canvas.width / gridSize)) {
                 coordDiv.textContent = `${row},${col}`;
                 if (isDragging) {
-                    selectCell(row, col, true);
+                    selectCell(row, col, event.shiftKey);
                 }
             } else {
                 coordDiv.textContent = '超出範圍';
@@ -286,9 +304,11 @@
         }
 
         // 選取單元格
-        function selectCell(row, col, isDraggingMode) {
+        function selectCell(row, col, isShiftPressed) {
             const key = `${row},${col}`;
-            if (isDraggingMode) {
+            if (isShiftPressed) {
+                selectedCells.delete(key);
+            } else if (isDragging) {
                 selectedCells.add(key);
             } else {
                 if (selectedCells.has(key)) {
