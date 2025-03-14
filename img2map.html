@@ -123,6 +123,8 @@
             <label>線條透明度(%): <input type="number" id="lineOpacity" value="100" min="0" max="100"></label>
             <label>分隔像素: <input type="number" id="gridSize" value="32" min="1"></label>
             <label>背景亮度(%): <input type="number" id="brightness" value="50" min="0" max="100"></label>
+            <label>選取數值: <input type="number" id="selectValue" value="1" min="0"></label>
+            <label>框線顏色: <input type="color" id="borderColor" value="#00ff00"></label>
             <button onclick="redraw()">重新繪製</button>
         </div>
         <canvas id="canvas"></canvas>
@@ -144,9 +146,11 @@
         const lineOpacity = document.getElementById('lineOpacity');
         const gridSizeInput = document.getElementById('gridSize');
         const brightnessInput = document.getElementById('brightness');
+        const selectValueInput = document.getElementById('selectValue');
+        const borderColorInput = document.getElementById('borderColor');
 
         const img = new Image();
-        let selectedCells = new Set();
+        let selectedCells = {}; // 儲存 { "row,col": { value: 數值, color: 框線顏色 } }
         let isDragging = false;
         let dragStartPos = null;
 
@@ -174,6 +178,8 @@
         function redraw() {
             const gridSize = parseInt(gridSizeInput.value) || 32;
             const brightness = parseInt(brightnessInput.value) || 50;
+
+            if (!img.complete || img.naturalWidth === 0) return;
 
             canvas.width = img.width;
             canvas.height = img.height;
@@ -213,7 +219,7 @@
             }
         }
 
-        // 繪製座標
+        // 繪製座標（可選）
         function drawCoordinates(width, height, gridSize) {
             ctx.fillStyle = fontColor.value;
             ctx.font = '12px Arial';
@@ -232,19 +238,23 @@
             }
         }
 
-        // 繪製選取的方格
+        // 繪製選取的方格（使用亮度高的半透明灰色，移除數字）
         function drawSelectedCells(gridSize) {
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)'; // 綠色半透明高亮
-            ctx.strokeStyle = 'rgba(0, 255, 0, 1)';
-            ctx.lineWidth = 2;
-
-            selectedCells.forEach(cell => {
-                const [row, col] = cell.split(',').map(Number);
+            for (const key in selectedCells) {
+                const [row, col] = key.split(',').map(Number);
                 const x = col * gridSize;
                 const y = row * gridSize;
+                const { color } = selectedCells[key];
+
+                // 繪製亮度高的半透明灰色高亮
+                ctx.fillStyle = 'rgba(200, 200, 200, 0.5)'; // 亮灰色，透明度 0.5
                 ctx.fillRect(x, y, gridSize, gridSize);
+
+                // 繪製框線
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, gridSize, gridSize);
-            });
+            }
         }
 
         // 生成陣列文字（用於複製和下載）
@@ -257,7 +267,7 @@
                 let rowArray = [];
                 for (let col = 0; col < cols; col++) {
                     const key = `${row},${col}`;
-                    rowArray.push(selectedCells.has(key) ? 1 : 0);
+                    rowArray.push(selectedCells[key] ? selectedCells[key].value : 0);
                 }
                 outputText += `  [${rowArray.join(',')}]`;
                 if (row < rows - 1) outputText += ',\n';
@@ -348,24 +358,26 @@
         // 選取單元格
         function selectCell(row, col, isShiftPressed, isDragging) {
             const key = `${row},${col}`;
+            const selectValue = parseInt(selectValueInput.value) || 1;
+            const borderColor = borderColorInput.value;
+
             if (isDragging) {
                 if (isShiftPressed) {
-                    selectedCells.delete(key); // Shift + 拖曳取消選取
+                    delete selectedCells[key]; // Shift + 拖曳取消選取
                 } else {
-                    selectedCells.add(key); // 拖曳選取
+                    selectedCells[key] = { value: selectValue, color: borderColor }; // 拖曳選取
                 }
             } else {
                 if (isShiftPressed) {
-                    selectedCells.delete(key); // Shift + 單擊取消選取
-                } else if (selectedCells.has(key)) {
-                    selectedCells.delete(key); // 單擊已選取的格子取消
+                    delete selectedCells[key]; // Shift + 單擊取消選取
+                } else if (key in selectedCells) {
+                    delete selectedCells[key]; // 單擊已選取的格子取消
                 } else {
-                    selectedCells.add(key); // 單擊選取
+                    selectedCells[key] = { value: selectValue, color: borderColor }; // 單擊選取
                 }
             }
             redraw();
         }
         </script>
-        <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'91f1fe159d4d673f',t:'MTc0MTc2ODg2Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
     </body>
 </html>
